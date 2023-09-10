@@ -1,0 +1,145 @@
+Procedures can be thought of simply as functions in x86 assembly
+
+You just define a label like the following:
+
+addTwo:
+	ADD eax,ebx
+	RET
+
+and then use it below in the main or _start label
+
+main:
+	MOV eax,4
+	MOV ebx,1
+	CALL addTwo
+	MOV ebx,eax
+	MOV eax,1
+	INT 80h
+___________________________________________________
+
+Okay but when addTwo procedure finishes, it just takes us back to where we are supposed to be i.e next line in main: after CALL addTwo. But how?
+
+Data actually exist in the STACK.
+
+You can get `esp` register address -> info register esp
+then
+Do => x/x [address of esp]
+
+Remember that the Stack Pointer is pointing to the current available location at the memory
+
+When you run the CALL, it places the RETURN address onto the STACK.
+
+It takes the RET instruction does is that it takes RETURN address at ESP and brings it back to address of next instruction in main:
+
+______________________________________________
+
+Let's think about pushing data into the stack:
+
+main:
+	PUSH 4
+	PUSH 2
+	CALL addTwo
+	MOV ebx,eax
+	MOV eax,1
+	
+
+IN STACK IT LOOKS LIKE FOLLOWING WHEN WE DO PUSH INSTRUCTION:
+___________
+     2
+___________
+     4
+___________
+
+WHEN WE CALL THIS doAdd function it pushes the return address on the stack as known previously above:
+___________
+RETURN ADDRESS <------ ESP
+___________
+     2
+___________
+     4
+___________
+
+RETURN ADDRESS is the location of next instruction after the CALL instruction in the "main" label of the program
+
+How do we get 2 or 4 values in our procedure/function?
+
+Stack Pointer (ESP) is currently pointing at RETURN ADDRESS that was pushed by the CALL instruction.
+
+So what the approach is:
+in our procedure/function
+
+addTwo:
+	PUSH ebp
+	MOV ebp,esp
+	ADD eax,ebx
+	RET
+
+So what is happening here is that we are PUSHING and setting a BASE POINTER:
+___________
+    EBP   <------ ESP
+___________
+RETURN ADDRESS
+___________
+     2
+___________
+     4
+___________
+
+Our Stack Pointer (ESP) moves upwards when something gets pushed into the stack, so it now points to EBP
+
+Then when we set our base pointer:
+	MOV ebp,esp
+	
+we are doing this to make sure both are pointing towards the same address
+
+Now we can reference position with respect to EBP:
+
+___________
+    EBP   <------ ESP
+___________
+RETURN ADDRESS <---- this address 4 away from EBP
+___________
+     2 <---- this address 8 away from EBP
+___________
+     4 <---- this address 12 away from EBP
+___________
+
+Each memory slot is of 4 bytes = 32 bits remember.
+
+So, now if we want to get value of 2 or value of 4, we can do so by following:
+
+addTwo:
+	PUSH ebp
+	MOV ebp,esp
+	MOV eax,[ebp+8]
+	MOV ebx,[ebp+12]
+	ADD eax,ebx
+	RET
+	
+But there is one problem here and that is:
+Our Stack Pointer (ESP) is still pointing at EBP, so when this procedure of addTwo returns, it will return the address of EBP
+
+To fix this, 
+We just POP ebp out and hence making our STACK like following:
+___________
+RETURN ADDRESS <------ ESP
+___________
+     2 <---- this address 8 away from EBP
+___________
+     4 <---- this address 12 away from EBP
+___________
+
+addTwo:
+	PUSH ebp
+	MOV ebp,esp
+	MOV eax,[ebp+8]
+	MOV ebx,[ebp+12]
+	ADD eax,ebx
+	POP ebp
+	RET
+
+Poping off elements moves ESP downwards in the stack and now it is pointing to the RETURN ADDRESS again
+
+_____________________________________________________________
+
+

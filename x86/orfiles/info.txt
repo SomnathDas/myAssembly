@@ -1,0 +1,94 @@
+System calls for opening and reading files
+__________________________________________
+
+Resources:
+x86 System Call Table:
+https://faculty.nps.edu/cseagle/assembly/sys_call.html
+
+open() System Call:
+https://man7.org/linux/man-pages/man2/open.2.html
+
+https://sites.uclouvain.be/SystInfo/usr/include/bits/fcntl.h.html
+
+____________________________________________
+
+So "INT" instruction will be the star of this show.
+We've been using "INT 80h" all along to trigger a "system call",
+"exit()" syscall mostly by setting: 
+MOV eax,1
+MOV ebx,1
+
+where eax represented the syscall code and ebx as return value.
+
+For opening and reading file as per according to the resources mentioned, we have to first set "eax" to 5 so that INT 80h instruction calls the "sys_open" syscall.
+
+MOV eax,5
+
+Now from manpage of open() sys call, argument required are:
+1st is the "pathname", 2nd is the "flags" and then 3rd (optional) "mode_t" which dictates if a file is not there and is created then with what permissions is that created.
+
+Let's focus on "pathname" and "flags" arguments!
+
+section .data
+	pathname DD "/home/user/Playgrd/asm/hello"
+
+and moving "pathname" address in the ebx register in main:
+
+MOV ebx,pathname
+
+Next we need to put `flags` but we know these `flags` are defined CONSTANTS in c-lang but since we are working with assembly, we will go to fcntl(2) file from manpage site https://sites.uclouvain.be/SystInfo/usr/include/bits/fcntl.h.html
+
+Now we need O_RDONLY flag to simply... read only our file :)
+Its numeric equivalent is 0 and therefore ecx (why ecx? look up at syscall table from resources) needs to be set 0
+
+MOV ecx,0
+
+Now, when INT instruction is fired and system call of open is made, the result of that system call will be stored in "eax" register and that will be an integer. Here that integer is the "file descripter" unique-id which is in the file discripter table where this id is associated with the file which we just opened.
+
+Complete Code at this point:
+___________________________________________________
+section .data
+	pathname DD "/home/user/Playgrd/asm/orfiles/hello"
+
+section .bss
+
+section .text
+ global main
+
+ main:
+	MOV eax,5
+	MOV ebx,pathname
+	MOV ecx,0
+	INT 80h
+
+____________________________________________________
+In gdb: x/2s [address] to view our pathname string
+_________
+
+Congrats! now we have opened the file and got the file descripter id to access it. So let's read it!
+
+Same process, we gonna look at x86 assembly table and manpage of read() systemcall
+
+eax needs to be set to 3 for read() syscall to trigger by INT 80h instruction
+ebx needs to be set to file descripter id 
+ecx needs to be set to buffer ( which we will allocate in .bss section as reserved space )
+edx needs to be set to size of that buffer (bytes you are going to read from the file)
+
+
+MOV ebx,eax (moving previously got file discriptor id to ebx)
+MOV eax,3 
+
+Since we know our hello file is that of around 76bytes, we can safely reserve 256 bytes in .bss section memory for buffer
+
+section .bss
+	buffer: resb 256
+
+MOV ecx,buffer
+MOV edx,256
+INT 80h
+
+and boom!
+Remember, your data which you read from the file is stored in the buffer which we set to memory address of the buffer in the ecx register.
+
+__________________________________________________________________
+

@@ -1,0 +1,22 @@
+- `CMP` (Comparison) instruction takes its arguments and substracts them.
+
+    ```asm
+    MOV eax,1
+    MOV ebx,2
+    CMP eax,ebx --> eax - ebx = 1 - 2 = -1
+    JL lesser
+    JMP end
+    ```
+
+- Next instruction if:
+    `JMP` (Jump) -> will jump to the given address regardless of the outcome
+    `JL` (Jump if less than) -> will jump if eax is less than ebx
+    `JZ` (Jump if zero) -> if prev CMP returned 0 ( setting ZF flag bit on)
+    `JNZ` (Jump if not zero) -> if prev CMP did not returned 0 (not setting ZF flag bit)
+
+    and so on...
+    
+    Be careful since these code executes procedure-wise (top to bottom)
+    The reason that `JMP end` is after `JL lesser` is because of this. 
+    
+    Since `lesser` is just right after `_start` label, it will execute anyways so we added `JMP end` as an __else__ condition so that if `JL` doesn't jump then it jumps to the end.
