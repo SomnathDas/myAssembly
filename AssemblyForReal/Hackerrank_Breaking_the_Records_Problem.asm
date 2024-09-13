@@ -8,15 +8,10 @@
 ; r8 -> no. of times breaking least points records. 
 ;
 
-extern printf
-extern exit
-
 section .bss
 
 section .data
 	scores DQ 3,4,21,36,10,28,35,5,24,42;
-	fmt1 DD ":: Min is %d",10,0;
-	fmt2 DD ":: Max is %d",0;
 
 section .text
 global main
@@ -30,7 +25,7 @@ main:
 	jmp iterate;
 
 iterate:
-	cmp r10, 80;
+	cmp r10, 80; no of elements in a list times 8 bytes
 	je final;
 	mov r11, [scores+r10]; score
 	add r10, 8;
@@ -51,5 +46,6 @@ if_score_is_greater:
 	jmp iterate;
 
 final:
-	push 1;
-	call exit;
+	mov rax, 60;
+	mov rdi, 0;
+	syscall;
