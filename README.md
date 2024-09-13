@@ -6,7 +6,7 @@ Contains notes and codes from my learning of x86 nasm assembly
 ```
 :: Important Resources ::
 
-- [ 64bit syscalls ]
+- [ Linux 64bit syscalls ]
 https://www.chromium.org/chromium-os/developer-library/reference/linux-constants/syscalls/#x86_64-64-bit
 
 - [ x64 Calling Conventions ]
