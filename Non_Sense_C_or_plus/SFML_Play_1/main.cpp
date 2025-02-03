@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <chrono>
 
 int parse_bits_from_argv(char* bitString, int in_bits[4]) {
     int error = 1;
@@ -45,7 +46,12 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    auto start = std::chrono::high_resolution_clock::now();
     xor_the_bits(in_a_bits, in_b_bits, out_bits);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Execution time: " << elapsed.count() << " seconds" << std::endl;
 
     sf::RenderWindow window(sf::VideoMode({500, 600}), "SFML works!");
     sf::RectangleShape rectangle({120.f, 50.f});
