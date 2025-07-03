@@ -1,0 +1,271 @@
+============== NOTES ON LEVEL 22-0/1 @ pwn.college =============
+==============================================================
+
+IMM, STM, SYS
+
+b, d, c, a
+
+OPEN, READ_MEMORY, WRITE, EXIT
+
+STM = 0x01
+IMM = 0x04
+SYS = 0x40
+
+b = 0x2
+c = 0x10
+a = 0x40
+d = 0x80
+
+EXIT = 0x1
+OPEN = 0x4
+READ_MEMORY = 0x20
+WRITE = 0x80
+
+\xAA\xBB\xCC = (ARG1, ARG2, OPCODE)
+
+0x55555555619b (main())
+0x555555555509 (rerandomize())
+
+---------------------------------------
+Instruction Valid = Exit Code = 0
+Instruction Invalid(stuck in loop) = Exit Code = 130
+Instruction Valid but Not Correct = Exit Code = 1
+
+Format = (ARG2, ARG1, OPCODE)
+
+VALUES = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80]
+VALUES = [b'\x01', b'\x02', b'\x04', b'\x08', b'\x10', b'\x20', b'\x40', b'\x80']
+------------------------------------------------------------
+LEVEL 22-1
+_______________
+
+SYS = 0x20
+IMM = 0x02
+STM = 0x08
+LDM = 0x04
+ADD = 0x01
+
+CMP = 0x10
+
+STK = 0x40
+JMP = 0x80
+
+a = 0x10
+b = [0x01, 0x02, 0x20, 0x40] (something off about 0x02, can be a wrong hunch)
+c = 
+d = 
+s = 0x08
+f = 0x80
+i = 0x04
+
+OPEN = 0x10 or 0x20
+READ_MEM = 0x40 or 0x80
+WRITE = 0x10 or 0x20
+SLEEP = 0x02
+EXIT = 0x01
+------------------------------------------------------------
+IMM regX 0x00
+IMM regY 0x04
+ADD regX regY
+SYS EXIT regX
+
+\x10
+\x69\x10\x02 (IMM regX 0x69)
+\x10\x01\x20 (SYS EXIT regX)
+
+\x69\xYY\x02 (IMM regY 0x69)
+\x01\x10\x02 (IMM regX 0x01)
+\xYY\x10\x01 (ADD regX regY)
+\x10\x01\x20 (SYS EXIT regX)
+
+\x69\xYY\x02\x01\x10\x02\xYY\x10\x01\x10\x01\x20
+-----------------------------------------------------------
+Just figure out 1. READ syscall 2. b, c
+
+IMM A 0 # Set arg1 to 0 for fd 0 (stdin)
+IMM B 0x45 # Set arg2 to 0x45 for offset within the memory section I want to
+write to
+IMM C 0x23 # Set arg3 to 0x23 for the amount of bytes I want to read in
+SYS READ D # Call the Yan85 read syscall. Calls read(0,0x45,0x23) where
+
+\x00\x10\x02 (IMM A 0)
+\x45\x01\x02 (IMM B 0x45)
+\x23\x08\x02 (IMM C 0x23)
+\x10\x10\x20 (SYS READ A)
+\x10\x01\x20 (SYS EXIT A)
+
+\x00\x10\x02\x45\x01\x02\x23\x08\x02\x10\x10\x20\x10\x01\x20
+--------------------------------------------------------------
+
+Figuring out STM
+
+IMM d 0x69
+IMM b 0x00
+STM *b d
+LDM a *b
+SYS EXIT a
+
+\x69\x01\x02 ( IMM d 0x69 )
+\x00\x08\x02 ( IMM b 0x00 )
+\x01\x08\x08 ( STM *b d )
+\x08\x10\x04 ( LDM a *b )
+\x10\x01\x20 ( SYS EXIT a )
+
+\x69\x20\x02\x00\x40\x02\x20\x40\x01\x40\x10\x40\x10\x01\x20
+
+- Use sleep to figure out arg2 = b
+- Use read to figure out arg3 = c
+
+\\x69\\x20\\x02\\x00\\x40\\x02\\x20\\x40\\x%02x\\x40\\x10\\x%02x\\x10\\x01\\x20
+
+STM = 0x01, 0x04
+LDM = 0x40, 0x08
+
+STM = 0x01 or 0x04
+LDM = 0x40 or 0x08
+
+STM = 0x01 and LDM = 0x40 (works)
+\x69\x20\x02\x00\x40\x02\x20\x40\x01\x40\x10\x40\x10\x01\x20 (this was just some fucking ADD instruction messin')
+
+STM = 0x08 and LDM = 0x04
+\x69\x20\x02\x00\x40\x02\x20\x40\x08\x40\x10\x04\x10\x01\x20 (works for some reason)
+-----------------------------------------------------
+SLEEP ( uses A register to sleep for A seconds and returns that time into B register)
+
+SYS SLEEP
+
+\x69\x20\x02\x00\x40\x02\x20\x40\x04\x40\x10\x40\x10\x01\x20
+_____________________________________________________
+OPEN = 0x10 or 0x20
+WRITE = 0x10 or 0x20
+
+\x10\xHH\x20\x10\x01\x20
+
+(0x02, 0x04, 0x08, 0x40, 0x80)
+
+READ_MEM can be figured out by passing "i" register to it and waiting for TIMEOUT
+Only SLEEP, READ_MEM and READ_CODE gets TIMEOUT by that
+
+echo -ne "\x08\x04\x10\x10\x10\x10" | ./babyrev-level-22-0; echo $?
+
+_____________________________________________________
+1. Figure out all instructions that TIMED_OUT using "i" as their arg2
+2. IMM a 0x10 to see if it sleeps for 0x10 seconds (manually)
+3. Filter out 0x10, 0x20, 0x01 and from earlier SLEEP SYSCALL Number then you will have only READ_MEM and READ_CODE
+
+\x04\xXX\x20\x10\x01\x20
+
+Looking for timeout
+
+\\x%02x
+
+READ_MEM, READ_CODE, SLEEP = 0x02, 0x40, 0x80
+
+Now to eliminate SLEEP syscall out ::
+
+\x10\x10\x02\x10\x02\x20\x10\x01\x20
+
+\x01\x10\x02\x10\x02\x20\x10\x01\x20
+
+Now confirmed that
+
+SLEEP = 0x02
+READ_MEM = 0x40 or 0x80
+READ_CODE = 0x40 or 0x80
+--------------------------------------------------------
+1. Use CMP to figure out "f" register
+2. Use STK to figure out "s" register
+
+We will be left with "b,c,d" register and 3 possible encodings, remember order matters and no repeatation
+So 6 possible combinations.
+
+\x69\x01\x02 ( IMM d 0x69 )
+\x00\x08\x02 ( IMM b 0x00 )
+\x08\x01\xXX ( CMP 0x01, 0x08 )
+\xYY\x10\x01 ( ADD 0x10, 0x01 )
+\x10\x01\x20 ( SYS EXIT a )
+
+\x69\x01\x02\x00\x08\x02\x08\x01\xXX\xYY\x10\x01\x10\x01\x20
+
+CMP = 0x10
+f = 0x80
+
+\x69\x01\x02\x00\x08\x02\x08\x01\x10\x80\x10\x01\x10\x01\x20
+
+x > y = exit code 66
+x < y = exit code 96
+x == y = exit code 0
+x == y == 0 = exit code 144
+-------------------------------------------------------------
+Using STK operation to figure out "s" register
+
+\x69\x01\x02 ( IMM ?, 0x69 )
+\x01\x00\xXX ( STK 0, ?)
+\x00\x10\xXX ( STK a, 0)
+\x10\x01\x20 ( SYS EXIT a )
+
+\x69\x01\x02\x01\x00\xXX\x00\x10\xXX\x10\x01\x20
+
+STK = 0x40
+
+\x69\x01\x02\x01\x00\x40\x00\x10\x40\x10\x01\x20
+
+Now, figure out "s" ::::
+
+\x69\x01\x02 ( IMM ?, 0x69 )
+\x01\x00\x40 ( STK 0, ?)
+\x01\x00\x40
+(... push more to see change)
+\xYY\x10\x01 ( ADD 0x10, regS )
+\x10\x01\x20 ( SYS EXIT a )
+
+\x69\x01\x02\x01\x00\x40\xYY\x10\x01\x10\x01\x20
+
+\x69\x01\x02\x01\x00\x40\x01\x00\x40\xYY\x10\x01\x10\x01\x20
+
+exit code = 2 (after incrementing)
+
+Hence s = 0x08
+____________________________________________________________________
+
+Summary till now ==
+
+SYS = 0x20
+IMM = 0x02
+STM = 0x08
+LDM = 0x04
+ADD = 0x01
+
+CMP = 0x10
+
+STK = 0x40
+JMP = 0x80
+
+a = 0x10
+b = [0x01, 0x02, 0x20, 0x40] (something off about 0x02, can be a wrong hunch)
+c = 
+d = 
+s = 0x08
+f = 0x80
+i = 0x04
+
+OPEN = 0x10 or 0x20
+READ_MEM = 0x40 or 0x80
+WRITE = 0x10 or 0x20
+SLEEP = 0x02
+EXIT = 0x01
+
+----
+Making choices
+
+EXIT = 0x01
+OPEN = 0x10
+WRITE = 0x20
+READ_MEM = 0x40
+
+(b,c,d) = [0x01, 0x02, 0x20, 0x40]
+
+a = 0x10
+b = 0x01
+c = 0x20
+d = 0x40
